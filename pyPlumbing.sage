@@ -638,16 +638,6 @@ def invert_powers(poly):
         inverted += [[[-1*e for e in monomial[0]],monomial[1]]]
     return Series(inverted)
 
-def L_norm_old(plum, type_rank,ell):
-    """
-        Standard L norm of a plumbing graph.
-    """
-    C = cartan_matrix(type_rank).inverse()
-    tot = 0
-    for i,j in itertools.product(range(plum.vertex_count),repeat=2):
-        tot += plum.plumbing_matrix_inverse[i,j]*QQ(np.dot(np.dot(ell[i],C),ell[j]))
-    return tot
-
 def L_norm_python(inv_plumbing, C_inv, ell_array, rnd):
     """
     L norm of a plumbing graph.
@@ -678,78 +668,6 @@ def L_norm_vectorized(inv_plumbing, C_inv, ell_array, rnd):
     
     return rounded_tot
 
-from numba import njit
-def L_norm_numba_slow(inv_plumbing, C_inv, ell_array, rnd):
-    """
-    Vectorized L norm of a plumbing graph, with optimized 
-     - dot product computation, 
-     - cached inverse, 
-     - tensor contraction
-     - vectorized rounding
-     - jit compilation
-    """
-    func = """
-from numba import njit
-
-@njit
-def L_norm_vectorized_4(inv_plumbing, C_inv, ell_array, rnd):
-    # Ensure ell_array is in float64 unless precision needs 128
-    
-    
-    # Convert einsum to dot product without using list comprehension
-    # We need to multiply each slice of ell_array by C_inv (matrix multiplication)
-    # We reshape ell_array to (m * l, n) and then use np.dot with C_inv
-    ell_array_reshaped = ell_array.reshape(-1, ell_array.shape[2])  # Shape (m*l, n)
-    ell_C_inv_reshaped = np.dot(ell_array_reshaped, C_inv.T)  # Shape (m*l, n)
-    
-    # Reshape back to (m, l, n)
-    ell_C_inv = np.ascontiguousarray(ell_C_inv_reshaped.reshape(ell_array.shape[0], ell_array.shape[1], ell_array.shape[2]))
-
-    ell_array_transposed = ell_array.transpose(0, 2, 1)
-    batch_size, m, n = ell_C_inv.shape
-    _, _, l = ell_array_transposed.shape
-
-    # Initialize the product array
-    product = np.zeros((batch_size, m, l))
-
-    
-    # Perform manual matrix multiplication
-    for b in range(batch_size):
-        for i in range(m):
-            for j in range(l):
-                tot = 0
-                for k in range(n):
-                    tot += ell_C_inv[b, i, k] * ell_array_transposed[b, k, j]
-                product[b, i, j] = tot
-
-    # First sum over axis 2, then sum over axis 1
-    product_sum_axis2 = np.sum(inv_plumbing * product, axis=2)
-    product_sum_axis1 = np.sum(product_sum_axis2, axis=1)
-
-    # Apply rounding
-    rounded_tot = np.round(product_sum_axis1, decimals=rnd)
-
-                
-    # Compute the total and vectorize the rounding operation
-    # rounded_tot = np.round(np.sum(inv_plumbing * product, axis=(1, 2)), decimals=rnd)
-    return rounded_tot
-rounded_tot = L_norm_vectorized_4(inv_plumbing, C_inv, ell_array, rnd)
-    """
-    # Create a dictionary to serve as the local namespace for exec
-    local_namespace = {}
-
-    # Add the object to the local namespace
-    local_namespace['inv_plumbing'] = np.array(inv_plumbing, dtype=np.float64)
-    local_namespace['C_inv'] = np.array(C_inv, dtype=np.float64)
-    local_namespace['ell_array'] = np.array(ell_array, dtype=np.float64)
-    local_namespace['rnd'] = int(rnd)
-
-    # Execute the code in func with 'np' also passed to the global namespace
-    exec(func, {'np': np, 'njit': njit}, local_namespace)
-    # Retrieve the result from the local namespace
-    rounded_tot = local_namespace['rounded_tot']
-
-    return rounded_tot
 
 
 class WeightedGraph():
@@ -1438,27 +1356,17 @@ class Plumbing():
         return exponent_products, prefactor_products
 
 
-    def zhat(self, type_rank, spin_c, order = 10, basis="weight",n_powers_start = 1, div_factor=100, method = "vectorized"):
+    def zhat(self, type_rank, spin_c, order = 10, basis="weight",n_powers_start = 1, div_factor=100, method = "cython"):
         
         match method:
             case "vectorized":
                 L_norm = L_norm_vectorized
             case "python":
                 L_norm = L_norm_python
-            case "numba_slow":
-                L_norm = L_norm_numba_slow
-            case "numba":
-                L_norm = L_norm_numba
-            case "cython_slow":
-                L_norm = L_norm_cython_slow
-            case "cython_array":
-                L_norm = L_norm_cython_array
-            case "cython_array_combined":
-                L_norm = L_norm_cython_array_combined
-            case "cython_combined":
-                L_norm = L_norm_cython_combined
+            case "cython":
+                L_norm = L_norm_cython
             case _:
-                raise ValueError("Method must be one of 'vectorized', 'python' or 'numba'")
+                raise ValueError("Method must be one of 'vectorized', 'python' or 'cython'")
 
         if basis == "root":
             raise NotImplementedError("Root basis not implemented yet")
@@ -1478,7 +1386,6 @@ class Plumbing():
             prefactor_products2 = prefactor_products2[new_terms]
             zhat_B = self._compute_zhat(spin_c, type_rank, exponent_products2, prefactor_products2, L_norm=L_norm)*self._zhat_prefactor(type_rank)
             max_power_computed = zhat_B.min_degree()
-
             n_powers += 1 * (int((order - max_power_computed)/div_factor)+1)
 
         return zhat_A.truncate(max_power_computed)
