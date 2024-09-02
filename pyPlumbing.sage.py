@@ -847,6 +847,26 @@ class Plumbing():
                 vertex_id += _sage_const_1 
         return cls(vertices, edges)
     
+    @classmethod
+    def from_plumbing_matrix(cls, plumbing_matrix):
+        """
+        Create a plumbing manifold from a plumbing matrix.
+        """
+        # Ensure the plumbing matrix has the shape of a square matrix
+        assert len(set(list(map(len, plumbing_matrix)) + [len(plumbing_matrix)])) == _sage_const_1 , "The plumbing matrix must be a square matrix."
+
+        # Initialize vertices and edges
+        vertices = {}
+        edges = []
+
+        # Process the plumbing matrix
+        for i,row in enumerate(plumbing_matrix):
+            vertices[i] = row[i]
+            for j,entry in enumerate(row[i+_sage_const_1 :]):
+                if entry != _sage_const_0 :
+                    edges.append((i, i+j+_sage_const_1 ))
+        return cls(vertices, edges)
+    
     def invert_orientation(self):
         return Plumbing({ k: -v for k, v in self._vertices_dict.items()}, [(x[_sage_const_1 ], x[_sage_const_0 ]) for x in self._edges])
 
@@ -1267,7 +1287,7 @@ class Plumbing():
         exponent_products = np.array(list(itertools.product(*node_contributions_exponents))).astype(np.float128)
         prefactor_products = np.array(list(itertools.product(*node_contributions_prefactors)))
 
-        condition = np.all(np.mod((np.array(self.plumbing_matrix_inverse) @ (exponent_products - np.array(spin_c))),_sage_const_1 ) == _sage_const_0 ,(_sage_const_1 ,_sage_const_2 ))
+        condition = np.all(np.mod((np.array(self.plumbing_matrix_inverse) @ ((exponent_products - np.array(spin_c))),_sage_const_1 )) == _sage_const_0 ,(_sage_const_1 ,_sage_const_2 ))
 
         exponent_contributing = exponent_products[condition]
         prefactor_contributing = prefactor_products[condition]
@@ -1287,7 +1307,8 @@ class Plumbing():
         """
 
         WG = [g.T for g in weyl_group(type_rank)]
-        matrix_products = (np.array(self.plumbing_matrix_inverse) @ (exponent_products[np.newaxis,:] - ((WG @ (np.array(spin_c).T)[np.newaxis,:]).transpose(_sage_const_0 ,_sage_const_2 ,_sage_const_1 ))[:,np.newaxis,:]))
+        cartan_i = cartan_matrix(type_rank).inverse()
+        matrix_products = (np.array(self.plumbing_matrix_inverse) @ (exponent_products[np.newaxis,:] - ((WG @ (np.array(spin_c).T)[np.newaxis,:]).transpose(_sage_const_0 ,_sage_const_2 ,_sage_const_1 ))[:,np.newaxis,:]) @ cartan_i)
         non_int_part, _ = np.modf(np.round(matrix_products, _sage_const_6 ))
         condition = np.concatenate(np.all((np.abs(non_int_part) < _sage_const_1en5 ),axis=(_sage_const_2 ,_sage_const_3 )))
         exponent_contributing = np.tile(exponent_products, (len(WG),_sage_const_1 ,_sage_const_1 ))[condition]
