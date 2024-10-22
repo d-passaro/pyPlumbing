@@ -1,0 +1,5 @@
+include src/pyPlumbing/*.py
+include src/pyPlumbing/*.pyx
+include src/pyPlumbing/*.c
+include src/pyPlumbing/*.sage
+include scripts/*.py

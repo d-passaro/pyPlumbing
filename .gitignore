@@ -1,0 +1,15 @@
+# Byte-compiled files
+__pycache__/
+*.py[cod]
+
+# Cython build files
+src/pyPlumbing/*.c
+build/
+dist/
+*.egg-info/
+
+# Compiled extensions
+*.so
+
+# Build directories
+build/
