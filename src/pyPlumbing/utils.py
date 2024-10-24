@@ -1,7 +1,10 @@
 from sage.all_cmdline import *   # import sage library
+
 from functools import lru_cache, wraps
 import numpy as np
 import itertools
+
+from series import *
 
 def convert_input_to_tuple(func):
     """
@@ -82,7 +85,7 @@ def weyl_group(type_rank):
     Weyl groups that are computed are stored in a dictionary _weyl_groups 
     for easy and quick access.
     """
-    return [matrix(g) for g in WeylGroup(type_rank).canonical_representation().list()]
+    return [matrix(g) for g in WeylGroup(type_rank).canonical_representation().list()]  # type: ignore
 
 
 @convert_input_to_tuple

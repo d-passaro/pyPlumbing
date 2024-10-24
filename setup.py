@@ -1,6 +1,7 @@
 import os
 import sys
 import subprocess
+import shutil
 from setuptools import setup, find_packages, Extension
 from setuptools.command.build_ext import build_ext as _build_ext
 from setuptools.command.build_py import build_py as _build_py
@@ -18,14 +19,16 @@ except ImportError:
 # Custom command to preprocess .sage files
 class PreprocessSageFiles(_build_py):
     def run(self):
-        # Preprocess .sage files before building Python modules
+        # Use 'sage -python' to run the preprocessing script
         self.preprocess_sage_files()
         super().run()
-
     def preprocess_sage_files(self):
         # Run the preprocessing script
         subprocess.check_call([sys.executable, 'scripts/preprocess_sage_files.py'])
         print("Preprocessing of .sage files complete.")
+
+
+
 
 # Custom build_ext command to ensure preprocessing happens before compiling extensions
 class build_ext(_build_ext):

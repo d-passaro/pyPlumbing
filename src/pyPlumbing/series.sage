@@ -1,6 +1,7 @@
 from sage.all_cmdline import *   # import sage library
 
 import numpy as np
+from utils import *
     
 class Series():
     def __init__(self, numerical, variables=None):

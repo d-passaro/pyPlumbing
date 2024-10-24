@@ -88,7 +88,7 @@ With SageMath installed and the environment activated, you can now install `pyPl
    Ensure that any previous build artifacts are removed:
 
    ```bash
-   rm -rf build/ dist/ src/pyPlumbing/*.c src/pyPlumbing/*.so
+   rm -rf build/ dist/ src/pyPlumbing/*.c
    find src/pyPlumbing/ -type f -name '*.py' ! -name '__init__.py' -delete
    ```
 
