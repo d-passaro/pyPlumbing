@@ -1,6 +1,8 @@
 # pyPlumbing
 
-**pyPlumbing** is a SageMath package that provides specialized plumbing computation tools utilizing SageMath's powerful mathematical capabilities for an efficient computation of Ẑ-invariants. This project is a work in progress. The package is not finished and it's still rough. Any suggestions are welcome.
+**pyPlumbing** is a SageMath package that provides specialized plumbing computation tools utilizing SageMath's powerful mathematical capabilities for an efficient computation of Ẑ-invariants.
+## **WARNING**
+This project is a work in progress, it is not finished and it's still rough and in testing. Be critical of the results of this package. If you see anything unusual, please report it.
 
 ## Table of Contents
 
