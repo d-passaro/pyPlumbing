@@ -1,8 +1,76 @@
 from sage.all_cmdline import *   # import sage library
 
 import numpy as np
-from utils import *
     
+
+def is_monomial(multi_poly):
+    """
+        Check if a multivariable polynomial is a monomial.
+    """
+    try:
+        if multi_poly.is_numeric():
+            return True
+        if len(multi_poly.variables()) == Integer(1) and multi_poly == multi_poly.variables()[Integer(0)]:
+            return True
+        if (multi_poly == product(multi_poly.op)):
+            return True
+        if len(list(multi_poly.op)) == Integer(2) and multi_poly.op[Integer(1)].is_constant() and (multi_poly == multi_poly.op[Integer(0)]**multi_poly.op[Integer(1)]):
+            return True
+        return False
+    except Exception as e:
+        print("Warning: could not determine if expression is a monomial.")
+        print("Polynomial:" + str(multi_poly))
+        print("Exception: "+ str(e))
+        return False
+
+def multi_poly_coeffs(multi_poly):
+    """
+        Get coefficients and powers of a multivariable poly expansion.
+    """
+    vrs = multi_poly.variables()    
+    if is_monomial(multi_poly):
+        coeff = multi_poly.substitute(*(v==Integer(1) for v in vrs))
+        exps = list()
+        for v in vrs:
+            exps.append((multi_poly.degree(v)))
+        return [[exps, coeff]]
+    else:
+        coeffs = list()
+        powrs = list()
+        for mono in multi_poly.iterator():
+            coeffs.append(Integer(mono.substitute(*(v==Integer(1) for v in vrs))))
+            exps = list()
+            for v in vrs:
+                exps.append(mono.degree(v))
+            powrs.append(list(exps))
+        return list(zip(powrs,coeffs))
+
+def join_dicts_with_function(dict1, dict2, conflict_resolver):
+    """
+    Join two dictionaries using a specified function to resolve conflicts for overlapping keys.
+
+    Parameters:
+    - dict1: First dictionary.
+    - dict2: Second dictionary.
+    - conflict_resolver: Function to apply in case of overlapping keys. Should accept two arguments (values from both dictionaries for the overlapping key) and return a single value.
+
+    Returns:
+    - A new dictionary with combined key-value pairs.
+    """
+    # Start with a shallow copy of dict1 to avoid modifying the original
+    result = dict1.copy()
+
+    # Iterate through dict2, adding or updating keys in the result
+    for key, value in dict2.items():
+        if key in result:
+            # If the key exists in both, use the conflict_resolver function to determine the value
+            result[key] = conflict_resolver(result[key], value)
+        else:
+            # If the key is unique to dict2, add it to the result
+            result[key] = value
+
+    return result
+
 class Series():
     def __init__(self, numerical, variables=None):
 
@@ -324,3 +392,6 @@ class Series():
         """
         new_numerical = [monomial for monomial in self.numerical if sum(monomial[0]) < max_order]
         return Series(new_numerical, self.variables)
+
+if __name__ == "__main__":
+    print(join_dicts_with_function)

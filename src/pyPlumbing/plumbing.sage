@@ -6,9 +6,9 @@ import numpy as np
 import itertools
 
 from cython_l_norm import L_norm_cython
-from utils import *
-from weightedgraph import *
-from series import *
+from .utils import *
+from .weightedgraph import *
+from .series import *
 
 class Plumbing():
     """
@@ -525,7 +525,7 @@ class Plumbing():
 
         return Series.from_symbolic((-1)^(Phi*pos_eigen)*q^((3*sig-self.plumbing_matrix.trace())/2*norm_rho2))
 
-    def zhat_np(self, type_rank, spin_c, n_powers = 2, basis="weight", L_norm = L_norm_vectorized):
+    def zhat_unbounded(self, type_rank, spin_c, n_powers = 2, wilson = None, basis="weight", method = "cython"):
         """
             Compute the Zhat invariant for a plumbing manifold, without cutting off the series.
             
@@ -534,28 +534,188 @@ class Plumbing():
             This algorithm does not ensure convergence of the series. 
             It is recommended to compare the results with other methods to ensure convergence.
 
+            Parameters
+            ----------
+            type_rank : tuple
+                A tuple representing the type and rank of the Lie algebra.
+            spin_c : list
+                A list representing the Spin^c structure in the chosen basis.
+            n_powers : int, optional
+                The number of powers in the double sided Weyl expansion to consider in the series (default is 2).
+            basis : str, optional
+                The basis in which the Spin^c structure is given. Can be "weight" or "root" (default is "weight").
+            method : str, optional
+                The method to use for computing the L-norm. Can be "vectorized", "python", or "cython" (default is "cython").
+            Returns
+            -------
+            Series
+                The computed Zhat invariant for the given plumbing manifold.
+            -------
         """
+
+        # We work in the weight basis, so we need to convert the spin_c to the weight basis
+        if basis == "root":
+            C = cartan_matrix(type_rank)
+            spin_c = matrix([C*v_r for v_r in spin_c])
+        
+        # Select the method to compute the L_norm
+        match method:
+            case "vectorized":
+                L_norm = L_norm_vectorized
+            case "python":
+                L_norm = L_norm_python
+            case "cython":
+                L_norm = L_norm_cython
+            case _:
+                raise ValueError("Method must be one of 'vectorized', 'python' or 'cython'")
+
+        if wilson is None:
+            wilson = [ vector([0] * type_rank[1]) for _ in range(self.vertex_count)]
+        
+        # Compute the exponents and prefactors
+        exponent_products, prefactor_products = self._ell_setup(type_rank, n_powers, wilson = wilson)
+        
+        # Compute the L_norms and prefactors
+        q_powers = self._compute_zhat(spin_c,type_rank,exponent_products, prefactor_products, wilson = wilson, L_norm=L_norm)
+        return q_powers * self._zhat_prefactor(type_rank)*self._zhat_prefactor(type_rank)
+    
+
+    def zhat(self, type_rank, spin_c, order = 10, wilson = None, basis="weight", n_powers_start = 1, div_factor=100, method = "cython", info = False):
+        """
+        Compute the zhat invariant for a given type rank and spin configuration.
+
+        Parameters:
+        -----------
+        type_rank : tuple
+            The type and rank of the Lie algebra (e.g., ('A', 2) for A2).
+        spin_c : list
+            The spin configuration vector.
+        order : int, optional
+            The order up to which the series is computed (default is 10).
+        basis : str, optional
+            The basis to use, either "weight" or "root" (default is "weight").
+        n_powers_start : int, optional
+            The starting number of powers for the double sided Weyl expansion in the computation (default is 1).
+        div_factor : int, optional
+            The division factor to adjust the increment of powers (default is 100).
+        method : str, optional
+            The method to use for computation, one of "vectorized", "python", or "cython" (default is "cython").
+        info : bool, optional
+            If True, prints additional information during computation (default is False).
+
+        Returns:
+        --------
+        Series
+            The truncated zhat invariant series up to the computed maximum power.
+        """
+
         if basis == "root":
             C = cartan_matrix(type_rank)
             spin_c = matrix([C*v_r for v_r in spin_c])
 
-        exponent_products, prefactor_products = self._ell_setup(type_rank, n_powers)
-        condition = np.all(np.mod(np.array(self.plumbing_matrix_inverse) @ ((exponent_products - np.array(spin_c))),1) == 0,(1,2))
-
-        exponent_contributing = exponent_products[condition]
-        prefactor_contributing = prefactor_products[condition]
+        match method:
+            case "vectorized":
+                L_norm = L_norm_vectorized
+            case "python":
+                L_norm = L_norm_python
+            case "cython":
+                L_norm = L_norm_cython
+            case _:
+                raise ValueError("Method must be one of 'vectorized', 'python' or 'cython'")
         
-        q_powers = self._compute_zhat(spin_c,type_rank,exponent_contributing,prefactor_contributing, L_norm=L_norm_vectorized)
-        return q_powers * self._zhat_prefactor(type_rank)*self._zhat_prefactor(type_rank)
-    
+        if wilson is None:
+            wilson = [ vector([0] * type_rank[1]) for _ in range(self.vertex_count)]
+        n_powers = n_powers_start
+        zhat_A = Series([])
+        zhat_B = Series([])
+        max_power_computed = 0
+        while max_power_computed <= order:
+            if info:
+                print(f"Computing {n_powers}")
+            # Compute the exponents, prefactors and the zhat invariant
+            exponent_products, prefactor_products = self._ell_setup(type_rank, n_powers, wilson = wilson) # This has room for improvement
+            zhat_A = self._compute_zhat(spin_c, type_rank, exponent_products, prefactor_products, wilson=wilson, L_norm=L_norm)*self._zhat_prefactor(type_rank)
+
+            # Assess the order of the computed series, has room for improvement
+            exponent_products2, prefactor_products2 = self._ell_setup(type_rank, n_powers + 1, wilson=wilson)
+            # Remove terms that are already computed
+            new_terms = np.logical_not(np.all(np.isin(exponent_products2,exponent_products),axis=(1,2)))
+            exponent_products2 = exponent_products2[new_terms]
+            prefactor_products2 = prefactor_products2[new_terms]
+            zhat_B = self._compute_zhat(spin_c, type_rank, exponent_products2, prefactor_products2, wilson=wilson, L_norm=L_norm)*self._zhat_prefactor(type_rank)
+            max_power_computed = zhat_B.min_degree-1
+            if info:
+                print(f"Maximum power computed {max_power_computed}")
+                print(f"zhat_A: {zhat_A}")
+                print(f"zhat_B: {zhat_B}")
+            n_powers += (int((order - max_power_computed)/div_factor)+1) # This has room for improvement
+
+        return zhat_A.truncate(max_power_computed)
+
+    def _ell_setup(self, type_rank, n_powers, wilson = None):
+        """
+        Construct the set of exponents and prefactors for the Zhat invariant computation.
+        """
+        rk = type_rank[1]
+        C = cartan_matrix(type_rank) # Uses sage
+        rho = C*weyl_vector(type_rank) # Uses sage
+        WG = [g.T for g in weyl_group(type_rank)] # Uses sage
+        WL = weyl_lengths(type_rank)
+
+        if wilson is None:
+            wilson = [ vector([0] * type_rank[1]) for _ in range(self.vertex_count)]
+
+        node_contributions_exponents = list()
+        node_contributions_prefactors = list()
+        # Compute the weyl denominator expansion, if high degree nodes exists 
+        if any([x > 2 for x in self.degree_vector.T[0]]):
+            weyl_expansion = weyl_double_sided_expansion(type_rank, n_powers) # Does not use sage
+        # Compute the node contributions
+        for degree, wil_rep in zip(self.degree_vector.T[0],wilson):
+            if degree == 0: # If the degree is zero, the contribution is just one
+                node_contributions_exponents.append([ tuple(-g1 * rho - g2 * (rho + wil_rep)) for g1,g2 in itertools.product(WG,repeat=2)]) 
+                node_contributions_prefactors.append([l1 * l2 for l1,l2 in itertools.product(WL,repeat=2)])
+            elif degree == 1: # If the degree is one we have a leaf
+                node_contributions_exponents.append([tuple(-g * (rho + wil_rep)) for g in WG])
+                node_contributions_prefactors.append(WL)
+            else: # If the degree is greater than one
+                new_powrs = list()
+                new_coeffs = list()
+                if wil_rep == vector([0]*rk):
+                    for expansion in weyl_expansion: # Selects for expansion at 0 and oo
+                        tot_exp = invert_powers(expansion.pow(degree-2))
+                        powrs,coeffs = list(zip(*tot_exp.numerical))
+                        new_powrs += powrs
+                        new_coeffs += coeffs
+                    node_contributions_exponents.append(new_powrs)
+                    node_contributions_prefactors.append(new_coeffs)
+                else:
+                    for expansion in weyl_expansion: # Selects for expansion at 0 and oo
+                        tot_exp = invert_powers(expansion.pow(degree-3))
+                        powrs,coeffs = list(zip(*tot_exp.numerical))
+                        for powr,coeff in zip(powrs,coeffs):
+                            for l,g in zip(WL,WG):
+                                new_powrs.append(tuple(-g * (rho + wil_rep) + vector(powr)))
+                                new_coeffs.append(coeff * l)
+                    node_contributions_exponents.append(new_powrs)
+                    node_contributions_prefactors.append(new_coeffs)
+                
+        # Create the cartesian product for the exponents and prefactors
+        exponent_products = np.array(list(itertools.product(*node_contributions_exponents)), dtype=np.float64)
+        prefactor_products = np.array(list(itertools.product(*node_contributions_prefactors)))
+        return exponent_products, prefactor_products
+
             
-    def _compute_zhat(self,spin_c, type_rank, exponent_products, prefactor_products, L_norm = L_norm_vectorized):
+    def _compute_zhat(self,spin_c, type_rank, exponent_products, prefactor_products, wilson = None, L_norm = L_norm_vectorized):
         """
         With the exponent and prefactor products assembled, compute the zhat. 
         """
         WG = [g.T for g in weyl_group(type_rank)]
         cartan_i = cartan_matrix(type_rank).inverse()
-        matrix_products = (np.array(self.plumbing_matrix_inverse) @ (exponent_products[np.newaxis,:] - ((WG @ (np.array(spin_c).T)[np.newaxis,:]).transpose(0,2,1))[:,np.newaxis,:]) @ cartan_i)
+        if wilson is None:
+            wilson = [ vector([0] * type_rank[1]) for _ in range(self.vertex_count)]
+
+        matrix_products = (np.array(self.plumbing_matrix_inverse) @ (exponent_products[np.newaxis,:] - ((WG @ (np.array(spin_c).T + np.array(wilson).T)[np.newaxis,:]).transpose(0,2,1))[:,np.newaxis,:]) @ cartan_i)
         non_int_part, _ = np.modf(np.round(matrix_products, 6))
         condition = np.concatenate(np.all((np.abs(non_int_part) < 1e-5),axis=(2,3)))
         exponent_contributing = np.tile(exponent_products, (len(WG),1,1))[condition]
@@ -572,83 +732,6 @@ class Plumbing():
         series_numerical = [[tuple(p),c] for p,c in zip(q_powers,prefactor_contributing)]
         return Series(series_numerical,variables=[var("q")])
     
-    def _ell_setup(self, type_rank, n_powers):
-        """
-        Construct the set of exponents and prefactors for the Zhat invariant computation.
-        """
-        rk = type_rank[1]
-        C = cartan_matrix(type_rank) # Uses sage
-        rho = C*weyl_vector(type_rank) # Uses sage
-        WG = [g.T for g in weyl_group(type_rank)] # Uses sage
-        WL = weyl_lengths(type_rank)
-        node_contributions_exponents = list()
-        node_contributions_prefactors = list()
-        # Compute the weyl denominator expansion, if high degree nodes exists 
-        if any([x > 2 for x in self.degree_vector.T[0]]):
-            weyl_expansion = weyl_double_sided_expansion(type_rank, n_powers) # Does not use sage
-        # Compute the node contributions
-        for degree in self.degree_vector.T[0]:
-            if degree == 0: # If the degree is zero, the contribution is just one
-                node_contributions_exponents.append(([0]*rk)) 
-                node_contributions_prefactors.append([1])
-            elif degree == 1: # If the degree is one we have a leaf
-                node_contributions_exponents.append([tuple(g * rho) for g in WG])
-                node_contributions_prefactors.append(WL)
-            else: # If the degree is greater than one, use (add a degree = 2 case which should be trivial)
-                new_powrs = list()
-                new_coeffs = list()
-                for expansion in weyl_expansion: # Selects for expansion at 0 and oo
-                    tot_exp = invert_powers(expansion.pow(degree-2))
-                    powrs,coeffs = list(zip(*tot_exp.numerical))
-                    new_powrs += powrs
-                    new_coeffs += coeffs
-                node_contributions_exponents.append(new_powrs)
-                node_contributions_prefactors.append(new_coeffs)
-        exponent_products = np.array(list(itertools.product(*node_contributions_exponents))).astype(np.float64) # This here is the bottleneck right now
-        prefactor_products = np.array(list(itertools.product(*node_contributions_prefactors))) # This here is the bottleneck right now
-        return exponent_products, prefactor_products
-
-
-    def zhat(self, type_rank, spin_c, order = 10, basis="weight", n_powers_start = 1, div_factor=100, method = "cython", info = False):
-        match method:
-            case "vectorized":
-                L_norm = L_norm_vectorized
-            case "python":
-                L_norm = L_norm_python
-            case "cython":
-                L_norm = L_norm_cython
-            case _:
-                raise ValueError("Method must be one of 'vectorized', 'python' or 'cython'")
-
-        if basis == "root":
-            raise NotImplementedError("Root basis not implemented yet")
-
-        n_powers = n_powers_start
-        zhat_A = Series([])
-        zhat_B = Series([])
-        max_power_computed = 0
-        while max_power_computed <= order:
-            if info:
-                print(f"Computing {n_powers}")
-            # Compute the exponents, prefactors and the zhat invariant
-            exponent_products, prefactor_products = self._ell_setup(type_rank, n_powers) # This has room for improvement
-            zhat_A = self._compute_zhat(spin_c, type_rank, exponent_products, prefactor_products, L_norm=L_norm)*self._zhat_prefactor(type_rank)
-
-            # Assess the order of the computed series, has room for improvement
-            exponent_products2, prefactor_products2 = self._ell_setup(type_rank, n_powers + 1)
-            # Remove terms that are already computed
-            new_terms = np.logical_not(np.all(np.isin(exponent_products2,exponent_products),axis=(1,2)))
-            exponent_products2 = exponent_products2[new_terms]
-            prefactor_products2 = prefactor_products2[new_terms]
-            zhat_B = self._compute_zhat(spin_c, type_rank, exponent_products2, prefactor_products2, L_norm=L_norm)*self._zhat_prefactor(type_rank)
-            max_power_computed = zhat_B.min_degree-1
-            if info:
-                print(f"Maximum power computed {max_power_computed}")
-                print(f"zhat_A: {zhat_A}")
-                print(f"zhat_B: {zhat_B}")
-            n_powers += (int((order - max_power_computed)/div_factor)+1) # This has room for improvement
-
-        return zhat_A.truncate(max_power_computed)
 
 """
 References:
