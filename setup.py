@@ -76,7 +76,7 @@ setup(
     },
     ext_modules=ext_modules,
     install_requires=[
-        'numpy',
+        'numpy<2',
         'Cython',
     ],
     classifiers=[
