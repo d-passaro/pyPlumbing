@@ -65,9 +65,9 @@ setup(
     name='pyPlumbing',
     version='0.1.0',
     description='A plumbing utilities package for SageMath',
-    author='Your Name',
-    author_email='your.email@example.com',
-    url='https://github.com/yourname/pyPlumbing',
+    author='Davide Passaro',
+    author_email='dpassaro@caltech.edu',
+    url='https://github.com/d-passaro/pyPlumbing',
     packages=find_packages(where='src'),
     package_dir={'': 'src'},
     cmdclass={
