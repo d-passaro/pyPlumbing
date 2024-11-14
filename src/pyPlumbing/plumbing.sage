@@ -5,7 +5,7 @@ from collections import Counter
 import numpy as np
 import itertools
 
-from cython_l_norm import L_norm_cython
+from .cython_l_norm import L_norm_cython
 from .utils import *
 from .weightedgraph import *
 from .series import *
