@@ -14,7 +14,7 @@ class Plumbing():
     """
     A class to represent a plumbing manifold. 
     """
-    def __init__(self, vertices_dict, edges):
+    def __init__(self, vertices_dict, edges, edge_signs=None):
         try:
             self._vertices_dict = vertices_dict
             self._edges = edges
@@ -22,7 +22,7 @@ class Plumbing():
             self._vertex_count = len(vertices_dict)
             self._edge_count = len(edges)
 
-            self._graph = Graph()
+            self._graph = Graph(multiedges=True)
             self._vertex_list = ['$v_{' + str(i) + '}\\hspace{2} '
                                   + str(vertices_dict[i])
                                   + '$' for i in range(0, self._vertex_count)]
@@ -36,6 +36,13 @@ class Plumbing():
                                             'vertex_size': 20}
             if self._graph.is_tree():
                 self._plot_options['layout'] = 'tree'
+            
+            if edge_signs == None:
+                edge_signs = [0]*self._edge_count
+            else:
+                assert len(edge_signs) == self._edge_count, "The number of edge signs must be equal to the number of edges."
+            
+            self._edge_signs = edge_signs
 
             self._graph_plot = GraphPlot(self._graph, self._plot_options)
 
@@ -165,9 +172,16 @@ class Plumbing():
         The plumbing matrix of the plumbing manifold.
         """
         if self._plumbing_matrix is None:
-            plumbing_matrix = self._graph.adjacency_matrix()
-            for i in range(0, self._vertex_count):
-                plumbing_matrix[i, i] = self._weight_vector[i,0]
+            plumbing_matrix = matrix(self.vertex_count,self.vertex_count)
+            for i in range(self.vertex_count):
+                plumbing_matrix[i,i] = self._weight_vector[i,0]
+            for edge,sign in zip(self._edges,self._edge_signs):
+                i,j = edge
+                if i != j:
+                    plumbing_matrix[edge[0],edge[1]] += (-1)**(sign)
+                    plumbing_matrix[edge[1],edge[0]] += (-1)**(sign)
+                else:
+                    plumbing_matrix[edge[0],edge[1]] += 2*(-1)**(sign)
             self._plumbing_matrix = plumbing_matrix
         return self._plumbing_matrix
 
