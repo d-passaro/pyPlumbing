@@ -556,6 +556,8 @@ class Plumbing():
                 A list representing the Spin^c structure in the chosen basis.
             n_powers : int, optional
                 The number of powers in the double sided Weyl expansion to consider in the series (default is 2).
+            wilson : list of vectors, optional
+                List of wilson line insertions. This should be of length equal to the number of nodes, each item should be a vector of same dimension as the rank of the group.
             basis : str, optional
                 The basis in which the Spin^c structure is given. Can be "weight" or "root" (default is "weight").
             method : str, optional
@@ -606,6 +608,8 @@ class Plumbing():
             The spin configuration vector.
         order : int, optional
             The order up to which the series is computed (default is 10).
+        wilson : list of vectors, optional
+            List of wilson line insertions. This should be of length equal to the number of nodes, each item should be a vector of same dimension as the rank of the group.
         basis : str, optional
             The basis to use, either "weight" or "root" (default is "weight").
         n_powers_start : int, optional
@@ -675,7 +679,6 @@ class Plumbing():
         rho = C*weyl_vector(type_rank) # Uses sage
         WG = [g.T for g in weyl_group(type_rank)] # Uses sage
         WL = weyl_lengths(type_rank)
-
         if wilson is None:
             wilson = [ vector([0] * type_rank[1]) for _ in range(self.vertex_count)]
 
