@@ -741,6 +741,7 @@ class Plumbing():
         dec_approx = len(str(np.max(np.abs(self.plumbing_matrix_inverse))))
         C_inv = np.array(cartan_matrix(type_rank).inverse(),dtype=np.float64)
         L_norms = L_norm(np.array(self.plumbing_matrix_inverse,dtype=np.float64),C_inv,exponent_contributing,dec_approx)
+        print(L_norms)
         prefactor_contributing = np.prod(prefactor_contributing,axis=1)
         
         # Convert to higher precision result if necessar
