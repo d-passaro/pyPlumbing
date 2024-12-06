@@ -705,7 +705,7 @@ class Plumbing():
                     node_contributions_prefactors.append(new_coeffs)
                 else:
                     for expansion in weyl_expansion: # Selects for expansion at 0 and oo
-                        tot_exp = invert_powers(expansion.pow(degree-Integer(3)))
+                        tot_exp = invert_powers(expansion.pow(degree-Integer(2)))
                         powrs,coeffs = list(zip(*tot_exp.numerical))
                         for powr,coeff in zip(powrs,coeffs):
                             for l,g in zip(WL,WG):
