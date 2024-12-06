@@ -590,10 +590,10 @@ class Plumbing():
         
         # Compute the exponents and prefactors
         exponent_products, prefactor_products = self._ell_setup(type_rank, n_powers, wilson = wilson)
-        
+        print(exponent_products) 
         # Compute the L_norms and prefactors
         q_powers = self._compute_zhat(spin_c,type_rank,exponent_products, prefactor_products, wilson = wilson, L_norm=L_norm)
-        return q_powers * self._zhat_prefactor(type_rank)*self._zhat_prefactor(type_rank)
+        return q_powers #* self._zhat_prefactor(type_rank)
     
 
     def zhat(self, type_rank, spin_c, order = 10, wilson = None, basis="weight", n_powers_start = 1, div_factor=100, method = "cython", info = False):
@@ -685,8 +685,8 @@ class Plumbing():
         node_contributions_exponents = list()
         node_contributions_prefactors = list()
         # Compute the weyl denominator expansion, if high degree nodes exists 
-        if any([x > 2 for x in self.degree_vector.T[0]]):
-            weyl_expansion = weyl_double_sided_expansion(type_rank, n_powers) # Does not use sage
+        #if any([x > 2 for x in self.degree_vector.T[0]]):
+        weyl_expansion = weyl_double_sided_expansion(type_rank, n_powers) # Does not use sage
         # Compute the node contributions
         for degree, wil_rep in zip(self.degree_vector.T[0],wilson):
             if degree == 0: # If the degree is zero, the contribution is just one
