@@ -590,7 +590,6 @@ class Plumbing():
         
         # Compute the exponents and prefactors
         exponent_products, prefactor_products = self._ell_setup(type_rank, n_powers, wilson = wilson)
-        print(exponent_products) 
         # Compute the L_norms and prefactors
         q_powers = self._compute_zhat(spin_c,type_rank,exponent_products, prefactor_products, wilson = wilson, L_norm=L_norm)
         return q_powers #* self._zhat_prefactor(type_rank)
