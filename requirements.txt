@@ -1,3 +1,4 @@
+python==3.12.5
 attr==0.3.2
 colorama==0.4.6
 ConfigParser==7.1.0

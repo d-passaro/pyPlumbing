@@ -119,6 +119,9 @@ With SageMath installed and the environment activated, you can now install `pyPl
    sage: P = pyPlumbing.Plumbing.from_Seifert_data([1,-1/2,-1/3,-1/5])
    sage: P.display()
    ```
+#### Note for Apple Silicon users
+    
+If you are trying to install pyPlumbing on a modern Apple computer with an Apple Silicon chip, you should make sure Rosetta 2 is enabled on your terminal.
 
 ## Usage
 
