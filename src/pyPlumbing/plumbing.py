@@ -131,7 +131,67 @@ class Plumbing():
                 if entry != Integer(0):
                     edges.append((i, i+j+Integer(1)))
         return cls(vertices, edges)
-    
+
+    @classmethod
+    def from_Brieskorn(cls, p_list):
+        """
+        Given a list of multiplicities p_list = [p1, p2, ..., p_r], compute the Seifert data
+        associated to this Brieskorn sphere and return the corresponding plumbing manifold.
+        """
+        
+        # Number of exceptional fibers
+        r = len(p_list)
+        if r == Integer(0):
+            raise ValueError("Must provide at least one p_i.")
+        
+        # Make sure the integers in p_list are coprime
+        if np.gcd.reduce(p_list) != Integer(1):
+            raise ValueError("The integers in p_list must be coprime.")
+
+        # 1) Compute the product p = p_1 * p_2 * ... * p_r
+        p_all = reduce(operator.mul, p_list, Integer(1))
+        
+        # 2) We set b = -1 and q_i = 1 for i=1..(r-1).
+        b = -Integer(1)
+        q_fixed = [Integer(1)]*(r-Integer(1))  # these are q1, q2, ..., q_{r-1}
+        
+        # 3) Compute partial sum: p_all * ( -1 + sum_{i=1 to r-1} 1/p_i )
+        #    That is X = p_all + sum_{i=1}^{r-1} [p_all / p_i].
+        #    (Note p_all/p_i is integer because p_all is the product of all p_j.)
+        X = -p_all  # corresponds to p_all * 1
+        for i in range(r-Integer(1)):
+            X += p_all // p_list[i]  # adds p_all * (1/p_i)
+        
+        # We want:
+        #      p_all * (-1 + sum_{i=1..r-1} 1/p_i + q_r / p_r) = ±1
+        #
+        # So  p_all * (q_r / p_r) = ±1 - X
+        # =>  q_r = (p_r * (±1 - X)) / p_all
+        #
+        # We'll try both signs ±1.
+        
+        # 4) Define the two possible deltas: delta_plus and delta_minus
+        delta_plus  = Integer(1) - X    #  (+1 - X)
+        delta_minus = -Integer(1) - X   #  (-1 - X)
+        
+        # 5) We'll see if p_r * delta_plus (or delta_minus) is divisible by p_all,
+        #    and if so, we define q_r accordingly.
+        #    Then we check gcd(p_r, q_r)=1, because we need (p_r,q_r) coprime.
+        
+        for delta in [delta_plus, delta_minus]:
+            num = p_list[-Integer(1)] * delta  # p_r * (±1 - X)
+            if num % p_all == Integer(0):      # must divide evenly for q_r to be integer
+                q_r = num // p_all
+                if np.gcd(p_list[-Integer(1)], q_r) == Integer(1):
+                    # Found a valid solution
+                    q_list = q_fixed + [q_r]
+                    # Return everything
+                    seif_data = (b, *[p/q for q,p in zip(p_list, q_list)])
+                    return cls.from_Seifert_data(seif_data)
+        
+        # If we reach this point, no solution was found, raise error and return None
+        raise ValueError("No integer q_r with gcd(p_r, q_r)=1 satisfies the condition.")
+        
     def invert_orientation(self):
         return Plumbing({ k: -v for k, v in self._vertices_dict.items()}, [(x[Integer(1)], x[Integer(0)]) for x in self._edges])
 
@@ -318,34 +378,34 @@ class Plumbing():
     @property
     def Seifert_data(self):
         """
-        Return the Seifert data of the plumbing manifold if it is a Seifert manifold.
+        return the seifert data of the plumbing manifold if it is a seifert manifold.
         """
-        if not self.is_Seifert:
-            print("The plumbing graph is not a Seifert manifold.")
+        if not self.is_seifert:
+            print("the plumbing graph is not a seifert manifold.")
             return -Integer(1)
-        if self._Seifert_data is None:
-            # Flatten the list of edges
+        if self._seifert_data is none:
+            # flatten the list of edges
             edges_flat = [vertex for edge in self._edges for vertex in edge]
 
-            # Count the occurrences of each vertex
+            # count the occurrences of each vertex
             vertex_counts = Counter(edges_flat)
 
-            # Find the vertex with the highest valency
+            # find the vertex with the highest valency
             high_valency_vertex = max(vertex_counts, key=vertex_counts.get)
 
-            # Initialize the list to store legs
+            # initialize the list to store legs
             legs = []
 
-            # Function to find the next vertex in the leg
+            # function to find the next vertex in the leg
             def find_next_vertex(current_vertex, edges, visited):
                 for edge in edges:
                     if current_vertex in edge:
                         next_vertex = [v for v in edge if v != current_vertex][Integer(0)]
                         if next_vertex not in visited:
                             return next_vertex
-                return None
+                return none
 
-            # Find legs connected to the high valency vertex
+            # find legs connected to the high valency vertex
             for edge in self._edges:
                 if high_valency_vertex in edge:
                     leg = []
@@ -364,10 +424,10 @@ class Plumbing():
 
                     legs.append(leg)
 
-            # Calculate weights for each leg
+            # calculate weights for each leg
             legs_weights = [[self._vertices_dict[v] for v in leg] for leg in legs]
 
-            # Calculate the Seifert data
+            # calculate the seifert data
             seif_data = list()
             seif_data.append(self._vertices_dict[high_valency_vertex])
             for leg in legs_weights:
@@ -376,8 +436,8 @@ class Plumbing():
                     seif_coeff = ai - Integer(1)/seif_coeff
                 seif_coeff = -Integer(1)/seif_coeff
                 seif_data.append(seif_coeff)
-            self._Seifert_data = seif_data
-        return self._Seifert_data
+            self._seifert_data = seif_data
+        return self._seifert_data
 
     @property
     def plumbing_matrix_inverse(self):
@@ -745,7 +805,7 @@ class Plumbing():
         
         # Convert to higher precision result if necessar
         q_powers = [QQ(round(-Integer(1)/Integer(2)*t,Integer(12))) for t in L_norms]
-        series_numerical = [[tuple(p),c] for p,c in zip(q_powers,prefactor_contributing)]
+        series_numerical = [[tuple(p),Integer(1)/(Integer(2)*len(WG))*c] for p,c in zip(q_powers,prefactor_contributing)]
         return Series(series_numerical,variables=[var("q")])
     
 

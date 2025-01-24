@@ -63,7 +63,7 @@ ext_modules = cythonize([
 
 setup(
     name='pyPlumbing',
-    version='0.1.0',
+    version='0.2.0',
     description='A plumbing utilities package for SageMath',
     author='Davide Passaro',
     author_email='dpassaro@caltech.edu',

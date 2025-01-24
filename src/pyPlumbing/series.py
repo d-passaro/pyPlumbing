@@ -96,20 +96,6 @@ class Series():
         self._coefficients = None
 
 
-    def _extend_sparse_series(self, numerical):
-        """
-        Extend a sparse series to a dense series.
-        """
-        # Assert that there is only one variable
-        assert len(numerical[Integer(0)][Integer(0)]) == Integer(1), "Non-sparse numerical series exist only for series of one variable."
-
-        sparse = self.numerical
-        non_sparse = [(sparse[Integer(0)][Integer(0)], sparse[Integer(0)][Integer(1)])]
-        for e,c in sparse[Integer(1):]:
-            while non_sparse[-Integer(1)][Integer(0)] < e-Integer(1):
-                non_sparse.append(([non_sparse[-Integer(1)][Integer(0)][Integer(0)]+Integer(1)],Integer(0)))
-            non_sparse.append((e,c))
-        return non_sparse
             
 
     @classmethod
@@ -180,12 +166,6 @@ class Series():
             return self._numerical
         else:
             return self._extend_sparse_series(self._numerical)
-        
-    def numerical_non_sparse(self):
-        """
-        Return the numerical representation of the series.
-        """
-        return self._extend_sparse_series(self._numerical)
 
     @property
     def dictionary(self):

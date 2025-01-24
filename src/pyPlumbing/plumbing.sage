@@ -131,7 +131,67 @@ class Plumbing():
                 if entry != 0:
                     edges.append((i, i+j+1))
         return cls(vertices, edges)
-    
+
+    @classmethod
+    def from_Brieskorn(cls, p_list):
+        """
+        Given a list of multiplicities p_list = [p1, p2, ..., p_r], compute the Seifert data
+        associated to this Brieskorn sphere and return the corresponding plumbing manifold.
+        """
+        
+        # Number of exceptional fibers
+        r = len(p_list)
+        if r == 0:
+            raise ValueError("Must provide at least one p_i.")
+        
+        # Make sure the integers in p_list are coprime
+        if np.gcd.reduce(p_list) != 1:
+            raise ValueError("The integers in p_list must be coprime.")
+
+        # 1) Compute the product p = p_1 * p_2 * ... * p_r
+        p_all = reduce(operator.mul, p_list, 1)
+        
+        # 2) We set b = -1 and q_i = 1 for i=1..(r-1).
+        b = -1
+        q_fixed = [1]*(r-1)  # these are q1, q2, ..., q_{r-1}
+        
+        # 3) Compute partial sum: p_all * ( -1 + sum_{i=1 to r-1} 1/p_i )
+        #    That is X = p_all + sum_{i=1}^{r-1} [p_all / p_i].
+        #    (Note p_all/p_i is integer because p_all is the product of all p_j.)
+        X = -p_all  # corresponds to p_all * 1
+        for i in range(r-1):
+            X += p_all // p_list[i]  # adds p_all * (1/p_i)
+        
+        # We want:
+        #      p_all * (-1 + sum_{i=1..r-1} 1/p_i + q_r / p_r) = ±1
+        #
+        # So  p_all * (q_r / p_r) = ±1 - X
+        # =>  q_r = (p_r * (±1 - X)) / p_all
+        #
+        # We'll try both signs ±1.
+        
+        # 4) Define the two possible deltas: delta_plus and delta_minus
+        delta_plus  = 1 - X    #  (+1 - X)
+        delta_minus = -1 - X   #  (-1 - X)
+        
+        # 5) We'll see if p_r * delta_plus (or delta_minus) is divisible by p_all,
+        #    and if so, we define q_r accordingly.
+        #    Then we check gcd(p_r, q_r)=1, because we need (p_r,q_r) coprime.
+        
+        for delta in [delta_plus, delta_minus]:
+            num = p_list[-1] * delta  # p_r * (±1 - X)
+            if num % p_all == 0:      # must divide evenly for q_r to be integer
+                q_r = num // p_all
+                if np.gcd(p_list[-1], q_r) == 1:
+                    # Found a valid solution
+                    q_list = q_fixed + [q_r]
+                    # Return everything
+                    seif_data = (b, *[p/q for q,p in zip(p_list, q_list)])
+                    return cls.from_Seifert_data(seif_data)
+        
+        # If we reach this point, no solution was found, raise error and return None
+        raise ValueError("No integer q_r with gcd(p_r, q_r)=1 satisfies the condition.")
+        
     def invert_orientation(self):
         return Plumbing({ k: -v for k, v in self._vertices_dict.items()}, [(x[1], x[0]) for x in self._edges])
 
