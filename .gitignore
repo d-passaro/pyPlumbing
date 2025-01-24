@@ -14,5 +14,8 @@ dist/
 # Build directories
 build/
 
+# Testing directory
+tests/
+
 # Clear script
 clear.sh

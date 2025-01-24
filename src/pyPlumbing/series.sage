@@ -96,6 +96,7 @@ class Series():
         self._coefficients = None
 
 
+            
 
     @classmethod
     def from_symbolic(cls, series):
@@ -157,11 +158,14 @@ class Series():
         return max_order
     
     @property
-    def numerical(self):
+    def numerical(self, sparse=True):
         """
         Return the numerical representation of the series.
         """
-        return self._numerical
+        if sparse:
+            return self._numerical
+        else:
+            return self._extend_sparse_series(self._numerical)
 
     @property
     def dictionary(self):
