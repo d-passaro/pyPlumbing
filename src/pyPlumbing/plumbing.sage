@@ -380,10 +380,10 @@ class Plumbing():
         """
         return the seifert data of the plumbing manifold if it is a seifert manifold.
         """
-        if not self.is_seifert:
+        if not self.is_Seifert:
             print("the plumbing graph is not a seifert manifold.")
             return -1
-        if self._seifert_data is none:
+        if self._Seifert_data is none:
             # flatten the list of edges
             edges_flat = [vertex for edge in self._edges for vertex in edge]
 
@@ -436,8 +436,8 @@ class Plumbing():
                     seif_coeff = ai - 1/seif_coeff
                 seif_coeff = -1/seif_coeff
                 seif_data.append(seif_coeff)
-            self._seifert_data = seif_data
-        return self._seifert_data
+            self._Seifert_data = seif_data
+        return self._Seifert_data
 
     @property
     def plumbing_matrix_inverse(self):
