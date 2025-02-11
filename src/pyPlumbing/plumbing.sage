@@ -383,7 +383,7 @@ class Plumbing():
         if not self.is_Seifert:
             print("the plumbing graph is not a seifert manifold.")
             return -1
-        if self._Seifert_data is none:
+        if self._Seifert_data is None:
             # flatten the list of edges
             edges_flat = [vertex for edge in self._edges for vertex in edge]
 
