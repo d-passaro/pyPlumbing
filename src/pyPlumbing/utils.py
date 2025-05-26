@@ -230,7 +230,7 @@ def L_norm_vectorized(inv_plumbing, C_inv, ell_array, rnd):
     Vectorized L norm of a plumbing graph, with optimized dot product computation and cached inverse.
     """
     # Ensure ell_array is in float64 unless precision needs 128
-    ell_array = np.array(ell_array, dtype=np.float64)
+    ell_array = np.array(ell_array, dtype=np.float128)
     
     # Precompute the dot products efficiently (einsum might still be best for higher dimensional contractions)
     ell_C_inv = np.einsum("ij,klj->kli", C_inv, ell_array)

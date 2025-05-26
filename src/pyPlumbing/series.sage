@@ -38,7 +38,7 @@ def multi_poly_coeffs(multi_poly):
         coeffs = list()
         powrs = list()
         for mono in multi_poly.iterator():
-            coeffs.append(Integer(mono.substitute(*(v==Integer(1) for v in vrs))))
+            coeffs.append(QQ(mono.substitute(*(v==Integer(1) for v in vrs))))
             exps = list()
             for v in vrs:
                 exps.append(mono.degree(v))
