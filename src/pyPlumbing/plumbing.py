@@ -1,3 +1,4 @@
+from sage.all import *
 from sage.all_cmdline import *  # import sage library
 from sage.graphs.graph_plot import GraphPlot
 
@@ -152,30 +153,26 @@ class Plumbing:
         Given a list of multiplicities p_list = [p1, p2, ..., p_r], compute the Seifert data
         associated to this Brieskorn sphere and return the corresponding plumbing manifold.
         """
+        assert all(gcd(pi,pj)==Integer(1) for pi,pj in itertools.combinations(p_list,r=Integer(2))), f"Integers need to be relatively coprime for Brieskorn spere definition, got {p_list}"
+
         # 1) Compute the product P of all p_i
-        P = Integer(1)
-        for p in p_list:
-            P *= p
+        P = product(p_list) 
 
         # 2) For each p_i, define P_i = P / p_i
-        #    and compute q_i such that q_i * P_i = -1 (mod p_i).
-        #    That is, q_i = - P_i_inverse (mod p_i).
+        #    and compute q_i such that q_i * P_i = 1 (mod p_i).
+        #    That is, q_i = P_i_inverse (mod p_i).
         q_list = []
         for p in p_list:
             P_i = P // p
             # Find inverse of P_i modulo p
-            inv_Pi_mod_p = inverse_mod(P_i, p)  # solves P_i * inv_Pi_mod_p == 1 (mod p)
-            # We want q_i = -inv_Pi_mod_p (mod p).  An equivalent integer rep is:
-            q_i = (-inv_Pi_mod_p) % p
+            q_i = -inverse_mod(P_i, p)  # solves P_i * inv_Pi_mod_p == -1 (mod p)
             q_list.append(q_i)
-
-        
-        b = -Integer(1)
+        # 3) Solve for b using Pb - sum_i q_i/p_i = 1
+        #    Note that b is an integer, so we force it to be stored as such
+        b = int(Integer(1)/P - sum(q_i/p_i for q_i,p_i in zip(q_list,p_list)))
         seif_data = (b, *[p / q for q, p in zip(p_list, q_list)])
-
-        return cls.from_Seifert_data(seif_data)
-        # If we reach this point, no solution was found, raise error and return None
-        raise ValueError("No integer q_r with gcd(p_r, q_r)=1 satisfies the condition.")
+        S = cls.from_Seifert_data(seif_data)
+        return S if S.plumbing_matrix_inverse[Integer(0),Integer(0)]<Integer(0) else S.invert_orientation()
 
     def invert_orientation(self):
         return Plumbing(
@@ -373,7 +370,6 @@ class Plumbing:
             print("the plumbing graph is not a seifert manifold.")
             return -Integer(1)
         if self._Seifert_data is None:
-            # 1. Identify the high valency vertex
             # flatten the list of edges
             edges_flat = [vertex for edge in self._edges for vertex in edge]
             # count the occurrences of each vertex
@@ -427,8 +423,8 @@ class Plumbing:
                     seif_coeff = ai - Integer(1) / seif_coeff
                 seif_coeff = -Integer(1) / seif_coeff
                 seif_data.append(seif_coeff)
-            self._seifert_data = seif_data
-        return self._seifert_data
+            self._Seifert_data = seif_data
+        return self._Seifert_data
 
     @property
     def plumbing_matrix_inverse(self):

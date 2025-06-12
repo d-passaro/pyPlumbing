@@ -171,8 +171,8 @@ class Plumbing:
         #    Note that b is an integer, so we force it to be stored as such
         b = int(1/P - sum(q_i/p_i for q_i,p_i in zip(q_list,p_list)))
         seif_data = (b, *[p / q for q, p in zip(p_list, q_list)])
-
-        return cls.from_Seifert_data(seif_data)
+        S = cls.from_Seifert_data(seif_data)
+        return S if S.plumbing_matrix_inverse[0,0]<0 else S.invert_orientation()
 
     def invert_orientation(self):
         return Plumbing(
